@@ -70,7 +70,7 @@ void loop()
 
 // funciones para usuario
 
-
+//funcion de apagar y prender motor Indeptes
 
 void temporizador (uint8_t tiempo1){
  

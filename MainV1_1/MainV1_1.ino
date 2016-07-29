@@ -15,8 +15,10 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 
+const int pot = A0;
 const int Boton = PUSH2;
-unsigned int seg=0; //segundos para el Timer de capa 8
+const int umbral = 30; // umbral de valor analogico del pote para iniciar el motor
+uint32_t seg=0; //segundos para el Timer de capa 8
 
 void initTimer()
 {  // se habilita despues de 5 ciclos de reloj, calcular para no escribirlo antes)
@@ -44,6 +46,8 @@ void setup()
   initTimer(); //inicializo el timer
   pinMode(Boton, INPUT_PULLUP);
   pinMode(GREEN_LED,OUTPUT);
+  pinMode(pot, INPUT);
+  
 }
 
 void loop() 
@@ -52,17 +56,25 @@ void loop()
   unsigned int Hz = 30;   // frequency in Hz  
   ulPeriod = (SysCtlClockGet() / Hz)/ 2;
   ROM_TimerLoadSet(TIMER0_BASE, TIMER_A,ulPeriod -1);
+  uint16_t pwm;
+  
   
   while (1)
   {
-    temporizador(10); // programo el cartel 10 segundos
-  
+    
+    if ( analogRead(pot) > umbral ){
+    pwm=pote();
+   // motor_ON(pwm);
+    }
+  //  temporizador(10); // programo el cartel 10 segundos
+    
     if (!digitalRead(Boton)){ //si apreto el boton, prendo LED)
       digitalWrite(GREEN_LED,HIGH);
     }
     else{    //si no apreto, hago lo de siempre
     digitalWrite(GREEN_LED,LOW);
     Serial.println(seg/60); 
+    Serial.println(pwm); 
     delay(1000);
     }
   }
@@ -72,10 +84,27 @@ void loop()
 
 //funcion de apagar y prender motor Indeptes
 
-void temporizador (uint8_t tiempo1){
+uint16_t pote(){ // el pote se conecta en PE_3
+  uint16_t duty;
+ if ( analogRead(pot) > umbral ) //umbral se seteara globalmente
+     duty = analogRead(pot);
+ return duty;
+}
+
+void motor_ON(uint32_t duty){
+ 
+  while(duty < 175){ // valor final se cambia con las pruebas
+   //duty = 30;
+   analogWrite(PB_3,duty);
+   Serial.println("Motor ON en PB_3"); 
+   duty++;  
+   }
+ }
+
+void temporizador (uint32_t tiempo1){
  
   if ( (seg / 60) == tiempo1){ // tiempo 1 en minutos
   //prender o apagar algo
-  Serial.println("Prendemos o apagamos algo");
+  Serial.println("Prendemos o apagamos algo"); //debug
   seg = 0;}
 }

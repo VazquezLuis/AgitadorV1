@@ -1,4 +1,10 @@
-# Test
+# Interrupciones con el Timer0
 
-Pruebas con interrupciones, objetivo: armar un timer de X minutos mediante interrupciones.
+## Objetivo
+
+Armar un temporizador de X minutos, utilizando el Timer0 para contar segundos.
+
+## Estado
+
+Cuenta 1 seg - Funcionando
 

@@ -3,22 +3,21 @@
 
 #define PART_TM4C123GH6PM
 #include "inc/tm4c123gh6pm.h"
-
-/*****************************
- * LM4F120 - timer based blink 
- * Using TimerIntRegister
- * 80 Mhz clock
- *****************************/
-
 #include "inc/hw_ints.h"
+#include "inc/hw_gpio.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 
+// Variables globales
 const int pot = A0;
-const int Boton = PUSH2;
+const int Boton = PF_0;  //PUSH2 
+const int danger = PF_4; //PUSH1
 const int umbral = 30; // umbral de valor analogico del pote para iniciar el motor
 uint32_t seg=0; //segundos para el Timer de capa 8
+uint32_t status=0; // estado de los pulsadores
+uint16_t minutos_t=1430; // minutos del temporizador
+
 
 void initTimer()
 {  // se habilita despues de 5 ciclos de reloj, calcular para no escribirlo antes)
@@ -37,17 +36,40 @@ void TimerIsr(void)
   //digitalWrite(RED_LED, digitalRead(RED_LED) ^ 1);              // Toggle led rojo - Control
 }
 
+void initbotones()
+{
+  GPIOIntTypeSet(GPIO_PORTF_BASE,GPIO_PIN_4,GPIO_RISING_EDGE);
+  GPIOIntRegister(GPIO_PORTF_BASE,BotonesIsr);
+  GPIOIntEnable(GPIO_PORTF_BASE, GPIO_INT_PIN_4);
+  GPIOIntEnable(GPIO_PORTF_BASE, GPIO_INT_PIN_0);
+}
 
+void BotonesIsr(){
+  status = GPIOIntStatus(GPIO_PORTF_BASE,true);
+  if( (status & GPIO_INT_PIN_4) == GPIO_INT_PIN_4){
+  minutos_t++;
+  if (minutos_t > 1440)minutos_t=0;
+  Serial.print("Minutos: ");  
+  Serial.println(minutos_t);} 
+  if( (status & GPIO_INT_PIN_0) == GPIO_INT_PIN_0){
+  minutos_t--;
+  if (minutos_t > 1440 && minutos_t <= 65535)minutos_t=1440;
+  Serial.print("Minutos: "); 
+  Serial.println(minutos_t);} 
+  GPIOIntClear(GPIO_PORTF_BASE,status);
+  }
 
 void setup()
 {
   Serial.begin(9600); //Comunicacion
-  //pinMode(RED_LED,OUTPUT); // Para la ISR del timer
+  pinMode(RED_LED,OUTPUT); // Para la ISR del timer
   initTimer(); //inicializo el timer
   pinMode(Boton, INPUT_PULLUP);
+  pinMode(danger, INPUT_PULLUP);
   pinMode(GREEN_LED,OUTPUT);
   pinMode(pot, INPUT);
-  
+  initbotones();
+ 
 }
 
 void loop() 
@@ -67,6 +89,12 @@ void loop()
    // motor_ON(pwm);
     }
   //  temporizador(10); // programo el cartel 10 segundos
+    if(!digitalRead(danger))
+      digitalWrite(RED_LED,HIGH);
+    else
+      digitalWrite(RED_LED,LOW);
+      
+    
     
     if (!digitalRead(Boton)){ //si apreto el boton, prendo LED)
       digitalWrite(GREEN_LED,HIGH);
@@ -74,7 +102,7 @@ void loop()
     else{    //si no apreto, hago lo de siempre
     digitalWrite(GREEN_LED,LOW);
     Serial.println(seg/60); 
-    Serial.println(pwm); 
+   // Serial.println(pwm); 
     delay(1000);
     }
   }

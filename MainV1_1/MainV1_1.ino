@@ -157,10 +157,6 @@ void temporizador (uint32_t tiempo1){
   seg = 0;}
 }
 
-void seg_a_min(){
-  
-}
-
 void min_a_hs(uint16_t min){
 	horas_s=min/60;
         minutos_s=min-(horas_s*60);

@@ -10,14 +10,16 @@
 #include "driverlib/timer.h"
 
 // Variables globales
-const int pot = A0;
+const int escala = 10;
+const int pot = A1;
+const int motor = PB_3;
 const int Boton = PF_0;  //PUSH2 
 const int danger = PF_4; //PUSH1
-const int umbral = 30; // umbral de valor analogico del pote para iniciar el motor
+const int umbral = 150; // umbral de valor analogico del pote para iniciar el motor
 uint32_t seg=0; //segundos para el Timer de capa 8
 uint32_t status=0; // estado de los pulsadores
-uint16_t minutos_t=1430; // minutos del temporizador
-
+uint16_t minutos_t=0; // minutos del temporizador
+uint8_t minutos_s, horas_s; // minutos y horas para mostrar por LCD
 
 void initTimer()
 {  // se habilita despues de 5 ciclos de reloj, calcular para no escribirlo antes)
@@ -38,7 +40,7 @@ void TimerIsr(void)
 
 void initbotones()
 {
-  GPIOIntTypeSet(GPIO_PORTF_BASE,GPIO_PIN_4,GPIO_RISING_EDGE);
+  GPIOIntTypeSet(GPIO_PORTF_BASE,GPIO_PIN_4,GPIO_FALLING_EDGE);
   GPIOIntRegister(GPIO_PORTF_BASE,BotonesIsr);
   GPIOIntEnable(GPIO_PORTF_BASE, GPIO_INT_PIN_4);
   GPIOIntEnable(GPIO_PORTF_BASE, GPIO_INT_PIN_0);
@@ -46,18 +48,28 @@ void initbotones()
 
 void BotonesIsr(){
   status = GPIOIntStatus(GPIO_PORTF_BASE,true);
+ // Serial.println(status); //DEBUG
+  
   if( (status & GPIO_INT_PIN_4) == GPIO_INT_PIN_4){
-  minutos_t++;
-  if (minutos_t > 1440)minutos_t=0;
-  Serial.print("Minutos: ");  
-  Serial.println(minutos_t);} 
+    delay(50);
+    minutos_t++;
+    if (minutos_t > 1440)minutos_t=0;
+    Serial.print("Minutos: ");  
+    Serial.println(minutos_t);
+    } 
+  
   if( (status & GPIO_INT_PIN_0) == GPIO_INT_PIN_0){
-  minutos_t--;
-  if (minutos_t > 1440 && minutos_t <= 65535)minutos_t=1440;
-  Serial.print("Minutos: "); 
-  Serial.println(minutos_t);} 
+    delay(50);
+    minutos_t--;
+    if (minutos_t > 1440 && minutos_t <= 65535)minutos_t=1440;
+    //if (
+    Serial.print("Minutos: "); 
+    Serial.println(minutos_t);
+    } 
+
   GPIOIntClear(GPIO_PORTF_BASE,status);
-  }
+
+}
 
 void setup()
 {
@@ -68,6 +80,7 @@ void setup()
   pinMode(danger, INPUT_PULLUP);
   pinMode(GREEN_LED,OUTPUT);
   pinMode(pot, INPUT);
+  pinMode(PB_3,OUTPUT);
   initbotones();
  
 }
@@ -83,26 +96,29 @@ void loop()
   
   while (1)
   {
-    
+   // test();
     if ( analogRead(pot) > umbral ){
     pwm=pote();
-   // motor_ON(pwm);
+    //analogWrite(PB_3,pwm);
+    motor_ON(pwm);
     }
   //  temporizador(10); // programo el cartel 10 segundos
+  /*
     if(!digitalRead(danger))
       digitalWrite(RED_LED,HIGH);
     else
       digitalWrite(RED_LED,LOW);
-      
+    */
     
+ //   min_a_hs(minutos_t);
     
     if (!digitalRead(Boton)){ //si apreto el boton, prendo LED)
       digitalWrite(GREEN_LED,HIGH);
     }
     else{    //si no apreto, hago lo de siempre
     digitalWrite(GREEN_LED,LOW);
-    Serial.println(seg/60); 
-   // Serial.println(pwm); 
+   // Serial.println(seg/60); 
+    Serial.println(pwm); 
     delay(1000);
     }
   }
@@ -112,27 +128,77 @@ void loop()
 
 //funcion de apagar y prender motor Indeptes
 
-uint16_t pote(){ // el pote se conecta en PE_3
-  uint16_t duty;
- if ( analogRead(pot) > umbral ) //umbral se seteara globalmente
-     duty = analogRead(pot);
- return duty;
+uint32_t pote(){ // el pote se conecta en PE_3
+  uint32_t duty;
+  if ( analogRead(pot) > umbral ) //umbral se seteara globalmente
+    duty = analogRead(pot) / escala;
+  return duty;
 }
 
 void motor_ON(uint32_t duty){
+  
+ if (duty >=245) duty=245; // Rango max 96% PWM
+ if (duty <= 60) duty=60;  // Rango min 19,6% PWM
  
-  while(duty < 175){ // valor final se cambia con las pruebas
+//  while(duty < 4000){ // valor final se cambia con las pruebas
    //duty = 30;
-   analogWrite(PB_3,duty);
+   analogWrite(motor,duty);
    Serial.println("Motor ON en PB_3"); 
-   duty++;  
-   }
+  // duty++;  
+  // }
  }
 
+// Funciones relacionadas al Tiempo 
 void temporizador (uint32_t tiempo1){
  
   if ( (seg / 60) == tiempo1){ // tiempo 1 en minutos
   //prender o apagar algo
   Serial.println("Prendemos o apagamos algo"); //debug
   seg = 0;}
+}
+
+void seg_a_min(){
+  
+}
+
+void min_a_hs(uint16_t min){
+	horas_s=min/60;
+        minutos_s=min-(horas_s*60);
+	Serial.print("Horas convertidas:");
+	Serial.println(horas_s);
+        Serial.print("Minutos convertidos:");
+        Serial.println(minutos_s);
+}
+
+void test(){ // No Funciona - probar
+uint32_t startPressed, endPressed, buttonState, lastButtonState;
+uint32_t NoPresstime, Presstime;
+buttonState = digitalRead(PUSH1);
+
+  // button state changed
+  if (buttonState != lastButtonState) {
+
+      // the button was just pressed
+      if (buttonState) {
+          startPressed = millis();
+          NoPresstime = startPressed - endPressed;
+          Serial.print("Sin Presionar"); 
+          Serial.println(NoPresstime); 
+          
+
+      // the button was just released
+      } 
+      if(!buttonState) {
+          endPressed = millis();
+          Presstime = endPressed - startPressed;
+	  Serial.print("Presionado"); 
+          Serial.println(Presstime); 
+           }
+
+  }
+
+  // save the current state as the last state, 
+  //for next time through the loop
+  lastButtonState = buttonState;
+
 }

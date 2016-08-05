@@ -143,6 +143,8 @@ void motor_ON(uint32_t duty){
 //  while(duty < 4000){ // valor final se cambia con las pruebas
    //duty = 30;
    analogWrite(motor,duty);
+   Serial.print("Duty:");
+   Serial.println(duty);
    Serial.println("Motor ON en PB_3"); 
   // duty++;  
   // }

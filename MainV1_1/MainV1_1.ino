@@ -18,8 +18,12 @@ const int danger = PF_4; //PUSH1
 const int umbral = 150; // umbral de valor analogico del pote para iniciar el motor
 uint32_t seg=0; //segundos para el Timer de capa 8
 uint32_t status=0; // estado de los pulsadores
-uint16_t minutos_t=0; // minutos del temporizador
+uint32_t minutos_t=0; // minutos del temporizador
 uint8_t minutos_s, horas_s; // minutos y horas para mostrar por LCD
+uint8_t control; // para salir del bucle de temporizador
+uint16_t pwm; // duty del motor controlador por el Potenciometro
+
+
 
 void initTimer()
 {  // se habilita despues de 5 ciclos de reloj, calcular para no escribirlo antes)
@@ -49,7 +53,7 @@ void initbotones()
 void BotonesIsr(){
   status = GPIOIntStatus(GPIO_PORTF_BASE,true);
  // Serial.println(status); //DEBUG
-  
+  control = 0;
   if( (status & GPIO_INT_PIN_4) == GPIO_INT_PIN_4){
     delay(50);
     minutos_t++;
@@ -91,18 +95,24 @@ void loop()
   unsigned int Hz = 30;   // frequency in Hz  
   ulPeriod = (SysCtlClockGet() / Hz)/ 2;
   ROM_TimerLoadSet(TIMER0_BASE, TIMER_A,ulPeriod -1);
-  uint16_t pwm;
+  
   
   
   while (1)
   {
    // test();
     if ( analogRead(pot) > umbral ){
-    pwm=pote();
-    //analogWrite(PB_3,pwm);
-    motor_ON(pwm);
-    }
-  //  temporizador(10); // programo el cartel 10 segundos
+      pwm=pote();
+      //analogWrite(PB_3,pwm);
+    //  motor_ON(pwm);
+      }
+    
+    if (minutos_t > 0 && control == 0){
+      Serial.println("Configurar minutos");
+      temporizador(minutos_t); // programo el cartel 10 segundos
+      control = 1;
+      }
+  
   /*
     if(!digitalRead(danger))
       digitalWrite(RED_LED,HIGH);
@@ -117,8 +127,8 @@ void loop()
     }
     else{    //si no apreto, hago lo de siempre
     digitalWrite(GREEN_LED,LOW);
-   // Serial.println(seg/60); 
-    Serial.println(pwm); 
+    Serial.println(seg/60); 
+   // Serial.println(pwm); 
     delay(1000);
     }
   }
@@ -141,22 +151,40 @@ void motor_ON(uint32_t duty){
  if (duty <= 60) duty=60;  // Rango min 19,6% PWM
  
 //  while(duty < 4000){ // valor final se cambia con las pruebas
-   //duty = 30;
    analogWrite(motor,duty);
    Serial.print("Duty:");
    Serial.println(duty);
-   Serial.println("Motor ON en PB_3"); 
+   Serial.println("Motor ON en PB_3"); //DEBUG 
   // duty++;  
   // }
  }
 
+void motor_OFF(uint32_t duty){
+  
+  while(duty > 0){ 
+   analogWrite(motor,duty);
+   Serial.print("Duty:"); //DEBUG
+   Serial.println(duty); //DEBUG
+   Serial.println("Motor OFF en PB_3"); //DEBUG 
+   duty--;
+   delay(300);  // variar este valor para apagado mas rapido o lento
+  }
+ }
+
+
 // Funciones relacionadas al Tiempo 
-void temporizador (uint32_t tiempo1){
- 
-  if ( (seg / 60) == tiempo1){ // tiempo 1 en minutos
-  //prender o apagar algo
+void temporizador (uint32_t tiempo1){ //no terminado
+  uint8_t control;
+  if (seg >=0)seg=0;
   Serial.println("Prendemos o apagamos algo"); //debug
-  seg = 0;}
+  //motor_ON(pwm);
+  while ( seg/60 <= tiempo1*60){
+    if (control == 2){
+  Serial.println("Prendemos o apagamos algo"); //debug
+  //motor_OFF(pwm);}
+  seg = 0;}  
+  }
+  
 }
 
 void min_a_hs(uint16_t min){
@@ -166,37 +194,4 @@ void min_a_hs(uint16_t min){
 	Serial.println(horas_s);
         Serial.print("Minutos convertidos:");
         Serial.println(minutos_s);
-}
-
-void test(){ // No Funciona - probar
-uint32_t startPressed, endPressed, buttonState, lastButtonState;
-uint32_t NoPresstime, Presstime;
-buttonState = digitalRead(PUSH1);
-
-  // button state changed
-  if (buttonState != lastButtonState) {
-
-      // the button was just pressed
-      if (buttonState) {
-          startPressed = millis();
-          NoPresstime = startPressed - endPressed;
-          Serial.print("Sin Presionar"); 
-          Serial.println(NoPresstime); 
-          
-
-      // the button was just released
-      } 
-      if(!buttonState) {
-          endPressed = millis();
-          Presstime = endPressed - startPressed;
-	  Serial.print("Presionado"); 
-          Serial.println(Presstime); 
-           }
-
-  }
-
-  // save the current state as the last state, 
-  //for next time through the loop
-  lastButtonState = buttonState;
-
 }

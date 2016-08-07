@@ -1,3 +1,5 @@
+#include <OneMsTaskTimer.h>
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -13,16 +15,16 @@
 const int escala = 10;
 const int pot = A1;
 const int motor = PB_3;
-const int Boton = PF_0;  //PUSH2 
-const int danger = PF_4; //PUSH1
+const int boton2 = PF_0;  //PUSH2 
+const int boton1 = PF_4; //PUSH1
 const int umbral = 150; // umbral de valor analogico del pote para iniciar el motor
 uint32_t seg=0; //segundos para el Timer de capa 8
 uint32_t status=0; // estado de los pulsadores
-uint32_t minutos_t=0; // minutos del temporizador
+uint16_t minutos_t=0; // minutos del temporizador
 uint8_t minutos_s, horas_s; // minutos y horas para mostrar por LCD
-uint8_t control; // para salir del bucle de temporizador
+boolean controlmotor=0; // bandera de si el motor esta prendido o no
 uint16_t pwm; // duty del motor controlador por el Potenciometro
-
+boolean temporizadorOFF = 1, cuentareset = 0;
 
 
 void initTimer()
@@ -37,9 +39,9 @@ void initTimer()
 
 void TimerIsr(void)
 {
-  ROM_TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);  // Clear the timer interrupt
+  ROM_TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT); // Levanta la interrupcion
   seg++; // si estamos a 30Hz - cuenta 1 seg
-  //digitalWrite(RED_LED, digitalRead(RED_LED) ^ 1);              // Toggle led rojo - Control
+  //digitalWrite(RED_LED, digitalRead(RED_LED) ^ 1); // Toggle led rojo - Control
 }
 
 void initbotones()
@@ -51,18 +53,24 @@ void initbotones()
 }
 
 void BotonesIsr(){
+  delay(50);
   status = GPIOIntStatus(GPIO_PORTF_BASE,true);
- // Serial.println(status); //DEBUG
-  control = 0;
-  if( (status & GPIO_INT_PIN_4) == GPIO_INT_PIN_4){
-    delay(50);
-    minutos_t++;
+  GPIOIntClear(GPIO_PORTF_BASE,status); // Levanta la interrupcion 
+  Serial.print("status=");
+  Serial.println(status); //DEBUG
+ // control = 0; //solo si presiono programar
+ 
+if( (status & GPIO_INT_PIN_4) == GPIO_INT_PIN_4){
+  delay(50);
+  minutos_t++;
+//    temporizadorOFF = false; //solo si presiono programar
     if (minutos_t > 1440)minutos_t=0;
     Serial.print("Minutos: ");  
     Serial.println(minutos_t);
     } 
   
   if( (status & GPIO_INT_PIN_0) == GPIO_INT_PIN_0){
+   // control = 1;
     delay(50);
     minutos_t--;
     if (minutos_t > 1440 && minutos_t <= 65535)minutos_t=1440;
@@ -71,20 +79,20 @@ void BotonesIsr(){
     Serial.println(minutos_t);
     } 
 
-  GPIOIntClear(GPIO_PORTF_BASE,status);
 
 }
+
 
 void setup()
 {
   Serial.begin(9600); //Comunicacion
   pinMode(RED_LED,OUTPUT); // Para la ISR del timer
   initTimer(); //inicializo el timer
-  pinMode(Boton, INPUT_PULLUP);
-  pinMode(danger, INPUT_PULLUP);
-  pinMode(GREEN_LED,OUTPUT);
+  pinMode(boton1, INPUT_PULLUP);
+  pinMode(boton2, INPUT_PULLUP);
+  pinMode(GREEN_LED,OUTPUT);// para DEBUG
   pinMode(pot, INPUT);
-  pinMode(PB_3,OUTPUT);
+  pinMode(motor,OUTPUT);
   initbotones();
  
 }
@@ -96,49 +104,42 @@ void loop()
   ulPeriod = (SysCtlClockGet() / Hz)/ 2;
   ROM_TimerLoadSet(TIMER0_BASE, TIMER_A,ulPeriod -1);
   
-  
-  
   while (1)
   {
-   // test();
-    if ( analogRead(pot) > umbral ){
       pwm=pote();
-      //analogWrite(PB_3,pwm);
     //  motor_ON(pwm);
-      }
-    
-    if (minutos_t > 0 && control == 0){
-      Serial.println("Configurar minutos");
-      temporizador(minutos_t); // programo el cartel 10 segundos
-      control = 1;
-      }
+
+      if( !digitalRead(boton1) && !digitalRead(boton2)){
+        temporizadorOFF = !temporizadorOFF;
+        Serial.print("tempOFF=");
+        Serial.println(temporizadorOFF);
+        
+        delay (2000);
+  //      control = 0;
+        }
+
+
+      temporizador(); // prendo motores durante X minutos
+//      control = 1;
+      
   
-  /*
-    if(!digitalRead(danger))
-      digitalWrite(RED_LED,HIGH);
-    else
-      digitalWrite(RED_LED,LOW);
-    */
-    
  //   min_a_hs(minutos_t);
     
-    if (!digitalRead(Boton)){ //si apreto el boton, prendo LED)
+    if (!digitalRead(boton1)){ //si apreto el boton, prendo LED)
       digitalWrite(GREEN_LED,HIGH);
     }
     else{    //si no apreto, hago lo de siempre
-    digitalWrite(GREEN_LED,LOW);
-    Serial.println(seg/60); 
-   // Serial.println(pwm); 
-    delay(1000);
-    }
+      digitalWrite(GREEN_LED,LOW);
+      Serial.println(seg/60); 
+     // Serial.println(pwm); 
+      delay(1000);
+      }
   }
 }
 
 // funciones para usuario
 
-//funcion de apagar y prender motor Indeptes
-
-uint32_t pote(){ // el pote se conecta en PE_3
+uint32_t pote(){ // el pote se conecta en PE_2 o A1
   uint32_t duty;
   if ( analogRead(pot) > umbral ) //umbral se seteara globalmente
     duty = analogRead(pot) / escala;
@@ -150,43 +151,65 @@ void motor_ON(uint32_t duty){
  if (duty >=245) duty=245; // Rango max 96% PWM
  if (duty <= 60) duty=60;  // Rango min 19,6% PWM
  
-//  while(duty < 4000){ // valor final se cambia con las pruebas
+ if (temporizadorOFF){
    analogWrite(motor,duty);
-   Serial.print("Duty:");
-   Serial.println(duty);
-   Serial.println("Motor ON en PB_3"); //DEBUG 
-  // duty++;  
-  // }
+   Serial.println("Motor ON en PB_3"); //DEBUG
+   Serial.print("Duty manual:");
+   Serial.println(duty); //DEBUG
  }
+ while(duty < 250 && !temporizadorOFF){ // prendido automatico lento
+    analogWrite(motor,duty);
+    Serial.print("Duty auto on:");
+    Serial.println(duty);
+   // Serial.println("Motor ON en PB_3"); //DEBUG 
+    duty++;
+    delay(250);  
+    }
+}
 
 void motor_OFF(uint32_t duty){
   
   while(duty > 0){ 
    analogWrite(motor,duty);
-   Serial.print("Duty:"); //DEBUG
+   Serial.print("Duty auto off:"); //DEBUG
    Serial.println(duty); //DEBUG
    Serial.println("Motor OFF en PB_3"); //DEBUG 
    duty--;
-   delay(300);  // variar este valor para apagado mas rapido o lento
+   delay(250);  // variar este valor para apagado mas rapido o lento
   }
  }
 
 
 // Funciones relacionadas al Tiempo 
-void temporizador (uint32_t tiempo1){ //no terminado
-  uint8_t control;
-  if (seg >=0)seg=0;
-  Serial.println("Prendemos o apagamos algo"); //debug
-  //motor_ON(pwm);
-  while ( seg/60 <= tiempo1*60){
-    if (control == 2){
-  Serial.println("Prendemos o apagamos algo"); //debug
-  //motor_OFF(pwm);}
-  seg = 0;}  
+void temporizador (){
+    if (!temporizadorOFF && !cuentareset) //si el temp se encendio chequear el tiempo
+      if (seg >=0){
+        seg=0;
+        cuentareset=1;
+      }
+      if(!temporizadorOFF && cuentareset){
+      if ( seg/60 == minutos_t *60){
+        controlmotor = 1;  
+        temporizadorOFF = true;
+        if (temporizadorOFF)
+          Serial.println("TempOFF: True;Apagado");
+        } 
+    }
+    if (!controlmotor && !temporizadorOFF){
+     Serial.println("Prendemos motor"); //debug
+     //motor_ON(pwm);
+     controlmotor=1;
+    }
+      
+    if (controlmotor && temporizadorOFF){
+         Serial.println("Apagamos motor"); //debug
+ //      motor_OFF(pwm);
+         controlmotor=0;
+         cuentareset=1;
+    }
   }
-  
-}
 
+  
 void min_a_hs(uint16_t min){
 	horas_s=min/60;
         minutos_s=min-(horas_s*60);

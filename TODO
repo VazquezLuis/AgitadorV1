@@ -9,7 +9,7 @@ TODO List
 
 *-- Probar temporizador que realice tareas cada X minutos (no funciona)
 *-----Buscar la manera de comprobar los minutos guardados globalmente, con los segundos que incrementa la interrupcion del timer0
-
+*-----Probar con unas banderas y usar la misma interrupcion para disparar el temporizador!
 
 ** Revisar la salida en Volts del pwm de salida del ARM, el osciloscopio me dice 3.44V - deberia ser 5? chequear con datasheet del driver!!!!!! 
 

@@ -16,13 +16,14 @@ const int motor = PB_3;
 const int boton2 = PF_0;  //PUSH2 
 const int boton1 = PF_4; //PUSH1
 const int umbral = 150; // umbral de valor analogico del pote para iniciar el motor
+
 uint32_t seg=0; //segundos para el Timer de capa 8
-uint32_t status=0; // estado de los pulsadores
+uint8_t status=0; // estado de los pulsadores
 uint16_t minutos_t=0; // minutos del temporizador
-uint8_t minutos_s, horas_s; // minutos y horas para mostrar por LCD
+uint8_t minutos_s=0, horas_s=0, dutyauto=0; // minutos y horas para mostrar por LCD
 boolean controlmotor=0; // bandera de si el motor esta prendido o no
 uint16_t pwm; // duty del motor controlador por el Potenciometro
-boolean temporizadorOFF = 1, cuentareset = 0;
+boolean temporizadorOFF = 1, cuentareset = 0, dutymanual = 1;
 
 
 void initTimer()
@@ -54,8 +55,8 @@ void BotonesIsr(){
   delay(50);
   status = GPIOIntStatus(GPIO_PORTF_BASE,true);
   GPIOIntClear(GPIO_PORTF_BASE,status); // Levanta la interrupcion 
-  Serial.print("status=");
-  Serial.println(status); //DEBUG
+//  Serial.print("status=");
+//  Serial.println(status); //DEBUG
  // control = 0; //solo si presiono programar
  
 if( (status & GPIO_INT_PIN_4) == GPIO_INT_PIN_4){
@@ -68,11 +69,9 @@ if( (status & GPIO_INT_PIN_4) == GPIO_INT_PIN_4){
     } 
   
   if( (status & GPIO_INT_PIN_0) == GPIO_INT_PIN_0){
-   // control = 1;
     delay(50);
     minutos_t--;
     if (minutos_t > 1440 && minutos_t <= 65535)minutos_t=1440;
-    //if (
     Serial.print("Minutos: "); 
     Serial.println(minutos_t);
     } 
@@ -144,36 +143,52 @@ uint32_t pote(){ // el pote se conecta en PE_2 o A1
   return duty;
 }
 
-void motor_ON(uint32_t duty){
+
+void motor_ON(uint32_t dutym){
   
- if (duty >=245) duty=245; // Rango max 96% PWM
- if (duty <= 60) duty=60;  // Rango min 19,6% PWM
+  uint8_t dutyauto=0;
+  boolean escape=0;
+  
+ // if(dutym > 0 || dutyauto > 0)
+ // controlmotor=1;
+ // else
+ // controlmotor=0;
+  
+ if (dutym >=245) dutym=245; // Rango max 96% PWM
+ if (dutym <= 60) dutym=60;  // Rango min 19,6% PWM
  
  if (temporizadorOFF){
-   analogWrite(motor,duty);
+   analogWrite(motor,dutym);
    Serial.println("Motor ON en PB_3"); //DEBUG
    Serial.print("Duty manual:");
-   Serial.println(duty); //DEBUG
+   Serial.println(dutym); //DEBUG
  }
- while(duty < 250 && !temporizadorOFF){ // prendido automatico lento
-    analogWrite(motor,duty);
-    Serial.print("Duty auto on:");
-    Serial.println(duty);
-   // Serial.println("Motor ON en PB_3"); //DEBUG 
-    duty++;
-    delay(250);  
+ while(dutyauto < 250 && !temporizadorOFF){ // prendido automatico lento
+    if(!escape){
+    dutyauto=0;
+    escape=1;
     }
+    analogWrite(motor,dutyauto);
+    Serial.print("Duty auto on:");
+    Serial.println(dutyauto);
+   // Serial.println("Motor ON en PB_3"); //DEBUG 
+    dutyauto++;
+    delay(210);  
+    }
+    if (dutyauto<=250)escape=0;
 }
 
 void motor_OFF(uint32_t duty){
   
-  while(duty > 0){ 
-   analogWrite(motor,duty);
+ // if(!temporizadorOFF)
+  
+  while(dutyauto > 0){ 
+   analogWrite(motor,dutyauto);
    Serial.print("Duty auto off:"); //DEBUG
    Serial.println(duty); //DEBUG
    Serial.println("Motor OFF en PB_3"); //DEBUG 
-   duty--;
-   delay(250);  // variar este valor para apagado mas rapido o lento
+   dutyauto--;
+   delay(210);  // variar este valor para apagado mas rapido o lento
   }
  }
 
@@ -195,13 +210,13 @@ void temporizador (){
     }
     if (!controlmotor && !temporizadorOFF){
      Serial.println("Prendemos motor"); //debug
-     //motor_ON(pwm);
+     motor_ON(pwm); // en un futuro desdoblar las funciones en on auto y manual
      controlmotor=1;
     }
       
     if (controlmotor && temporizadorOFF){
          Serial.println("Apagamos motor"); //debug
- //      motor_OFF(pwm);
+         motor_OFF(pwm); // desdoblar esta funcion tambien
          controlmotor=0;
          cuentareset=1;
     }

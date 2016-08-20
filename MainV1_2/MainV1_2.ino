@@ -103,34 +103,27 @@ void loop()
   
   while (1)
   {
-      pwm=pote();
+      
+    
+    pwm=pote();
     //  motor_ON(pwm);
 
       if( !digitalRead(boton1) && !digitalRead(boton2)){
         temporizadorOFF = !temporizadorOFF;
         Serial.print("tempOFF=");
         Serial.println(temporizadorOFF);
-        
         delay (2000);
-  //      control = 0;
         }
 
 
       temporizador(); // prendo motores durante X minutos
-//      control = 1;
       
+      Serial.print("Segundos:");
+      Serial.println(seg/60);
+      delay(1000); 
   
  //   min_a_hs(minutos_t);
-    
-    if (!digitalRead(boton1)){ //si apreto el boton, prendo LED)
-      digitalWrite(GREEN_LED,HIGH);
-    }
-    else{    //si no apreto, hago lo de siempre
-      digitalWrite(GREEN_LED,LOW);
-      Serial.println(seg/60); 
-     // Serial.println(pwm); 
-      delay(1000);
-      }
+   
   }
 }
 
@@ -146,7 +139,7 @@ uint32_t pote(){ // el pote se conecta en PE_2 o A1
 
 void motor_ON(uint32_t dutym){
   
-  uint8_t dutyauto=0;
+  uint8_t dutyauto=50;
   boolean escape=0;
   
  // if(dutym > 0 || dutyauto > 0)
@@ -165,7 +158,7 @@ void motor_ON(uint32_t dutym){
  }
  while(dutyauto < 250 && !temporizadorOFF){ // prendido automatico lento
     if(!escape){
-    dutyauto=0;
+    dutyauto=50;
     escape=1;
     }
     analogWrite(motor,dutyauto);
@@ -173,23 +166,24 @@ void motor_ON(uint32_t dutym){
     Serial.println(dutyauto);
    // Serial.println("Motor ON en PB_3"); //DEBUG 
     dutyauto++;
-    delay(210);  
+    delay(200);  
     }
     if (dutyauto<=250)escape=0;
 }
 
-void motor_OFF(uint32_t duty){
+void motor_OFF(){
+  if(dutyauto == 0) dutyauto=250;
   
- // if(!temporizadorOFF)
-  
-  while(dutyauto > 0){ 
+  do{ 
    analogWrite(motor,dutyauto);
    Serial.print("Duty auto off:"); //DEBUG
-   Serial.println(duty); //DEBUG
-   Serial.println("Motor OFF en PB_3"); //DEBUG 
+   Serial.println(dutyauto); //DEBUG
+ //  Serial.println("Motor OFF en PB_3"); //DEBUG 
    dutyauto--;
    delay(210);  // variar este valor para apagado mas rapido o lento
-  }
+  }while(dutyauto > 0);
+  
+  
  }
 
 
@@ -216,9 +210,10 @@ void temporizador (){
       
     if (controlmotor && temporizadorOFF){
          Serial.println("Apagamos motor"); //debug
-         motor_OFF(pwm); // desdoblar esta funcion tambien
+         delay(50);
+         motor_OFF(); // desdoblar esta funcion tambien
          controlmotor=0;
-         cuentareset=1;
+         cuentareset=0;
     }
   }
 

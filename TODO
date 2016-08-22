@@ -7,6 +7,15 @@ TODO List
 * Eliminar rebote, presiono una vez, incremento la variable minutos una vez. (completado)
 * Convertir minutos en horas y minutos para luego mostrar en LCD. (completado)
 * Probar temporizador que realice tareas cada X minutos (completado)
+** Probar con Drivers, el motor MR04 ( Probado)
+* Armar funcion para Encendido lento del motor y probarlo bien (completado)
+* Armar funcion para Apagado lento del motor y probarlo bien (completado)
+
+* Armar placa de potencia - para motor 60W - acoplada (completado)
+
+* Probar placa de potencia con fuente 24V (en proceso)
+
+
 
 * Agregar 3er Boton (funcion OK o Enter) para confirmar temporizador o ingreso de datos (en proceso)
 
@@ -23,16 +32,10 @@ TODO List
 
 
 
-** Probar con Drivers, el motor MR04
+
 
 ** Armar encoder y armar funcion que lea las RPM del motor
 
 ** Armar funcion para convertir el valor del duty en RPM
 
 * Armar funcion para mostrar las RPM en el display LCD
-
-* Armar funcion para Encendido lento del motor y probarlo bien
-
-
-
-* 

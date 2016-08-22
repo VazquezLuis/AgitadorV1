@@ -106,7 +106,7 @@ void loop()
       
     
     pwm=pote();
-    //  motor_ON(pwm);
+    motor_ON(pwm);
 
       if( !digitalRead(boton1) && !digitalRead(boton2)){
         temporizadorOFF = !temporizadorOFF;
@@ -147,7 +147,7 @@ void motor_ON(uint32_t dutym){
  // else
  // controlmotor=0;
   
- if (dutym >=245) dutym=245; // Rango max 96% PWM
+ if (dutym >=250) dutym=250; // Rango max 96% PWM
  if (dutym <= 60) dutym=60;  // Rango min 19,6% PWM
  
  if (temporizadorOFF){

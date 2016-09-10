@@ -10,8 +10,9 @@
 #include "driverlib/timer.h"
 
 // Variables globales
-const int escala = 10;
+const int escala = 11;
 const int pot = A1;
+const int boton3 = A2; // boton capacitivo - se lee analogico, valor > 3900 es un ON
 const int motor = PB_3;
 const int boton2 = PF_0;  //PUSH2 
 const int boton1 = PF_4; //PUSH1
@@ -106,6 +107,8 @@ void loop()
       
     
     pwm=pote();
+    //Serial.print("Valor PWM:");
+   // Serial.println(pwm);
     motor_ON(pwm);
 
       if( !digitalRead(boton1) && !digitalRead(boton2)){
@@ -131,7 +134,7 @@ void loop()
 
 uint32_t pote(){ // el pote se conecta en PE_2 o A1
   uint32_t duty;
-  if ( analogRead(pot) > umbral ) //umbral se seteara globalmente
+//  if ( analogRead(pot) > umbral ) //umbral se seteara globalmente
     duty = analogRead(pot) / escala;
   return duty;
 }
@@ -148,7 +151,7 @@ void motor_ON(uint32_t dutym){
  // controlmotor=0;
   
  if (dutym >=250) dutym=250; // Rango max 96% PWM
- if (dutym <= 60) dutym=60;  // Rango min 19,6% PWM
+// if (dutym <= 20) dutym=0;  // Rango min 19,6% PWM
  
  if (temporizadorOFF){
    analogWrite(motor,dutym);
